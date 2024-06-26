@@ -22,13 +22,17 @@ def get_service(credentials_json, site_name):
     if not credentials_json:
         raise ValueError(f"Missing credentials for {site_name}")
     print(f"Loading credentials for {site_name}: {credentials_json[:30]}...")  # Отладочная информация
-    with open(f'temp_credentials_{site_name}.json', 'w') as f:
-        f.write(credentials_json)
-    credentials = service_account.Credentials.from_service_account_file(
-        f'temp_credentials_{site_name}.json', scopes=SCOPES)
-    service = build('indexing', 'v3', credentials=credentials)
-    os.remove(f'temp_credentials_{site_name}.json')
-    return service
+    try:
+        with open(f'temp_credentials_{site_name}.json', 'w') as f:
+            f.write(credentials_json)
+        credentials = service_account.Credentials.from_service_account_file(
+            f'temp_credentials_{site_name}.json', scopes=SCOPES)
+        service = build('indexing', 'v3', credentials=credentials)
+        os.remove(f'temp_credentials_{site_name}.json')
+        return service
+    except Exception as e:
+        print(f"Error loading credentials for {site_name}: {e}")
+        raise
 
 def check_quota(service, site):
     try:
@@ -160,6 +164,10 @@ def process_site(site, credentials, links_to_index_file, indexed_links_file, fai
         print(f"Error: {e}")
         send_telegram_message(f"Indexing process for {site} failed: {e}")
         return 0
+    except Exception as e:
+        print(f"Unexpected error creating service for {site}: {e}")
+        send_telegram_message(f"Unexpected error creating service for {site}: {e}")
+        return 0
 
     if not check_quota(service, site):
         print(f"Quota exceeded or service unavailable for {site}, skipping indexing.")
@@ -226,5 +234,5 @@ def main():
     )
     send_telegram_message(message)
 
-if __name__ == "__main__":
+if __name__="__main__":
     main()
