@@ -5,6 +5,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from xml.etree import ElementTree as ET
 from googleapiclient.errors import HttpError
+from google.auth.exceptions import RefreshError
 
 SCOPES = ['https://www.googleapis.com/auth/indexing']
 VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ_CREDENTIALS')
@@ -26,15 +27,21 @@ def get_service(credentials_json, service_name):
 
 def check_quota(service, domain):
     try:
-        service.urlNotifications().getMetadata(url=f"https://{domain}").execute()
+        response = service.urlNotifications().getMetadata(url=f"https://{domain}").execute()
         return True
     except HttpError as e:
         if e.resp.status == 429:
             print(f"Quota exceeded for {domain}")
             return False
+        elif e.resp.status == 503:
+            print(f"Service unavailable for {domain}, skipping.")
+            return False
         else:
             print(f"Error checking quota for {domain}: {e}")
             return False
+    except RefreshError as e:
+        print(f"Refresh error while checking quota for {domain}: {e}")
+        return False
 
 def index_url(service, url):
     body = {
@@ -49,7 +56,13 @@ def index_url(service, url):
         if e.resp.status == 429:
             print(f"Quota exceeded while indexing {url}")
             return 'QUOTA_EXCEEDED'
+        elif e.resp.status == 503:
+            print(f"Service unavailable while indexing {url}")
+            return 'SERVICE_UNAVAILABLE'
         print(f"Error indexing {url}: {e}")
+        return None
+    except RefreshError as e:
+        print(f"Refresh error while indexing {url}: {e}")
         return None
 
 def load_links(file_path):
@@ -113,9 +126,9 @@ def process_links(service, links_to_index, indexed_links, failed_links, domain, 
         if url not in indexed_links and url not in failed_links:
             print(f"Indexing URL: {url}")
             response = index_url(service, url)
-            if response == 'QUOTA_EXCEEDED':
-                print(f"Quota exceeded during processing {domain}, stopping.")
-                send_telegram_message(f"Quota exceeded during processing {domain}, stopping.")
+            if response == 'QUOTA_EXCEEDED' or response == 'SERVICE_UNAVAILABLE':
+                print(f"Quota exceeded or service unavailable during processing {domain}, stopping.")
+                send_telegram_message(f"Quota exceeded or service unavailable during processing {domain}, stopping.")
                 break
             time.sleep(1)  # Задержка между запросами для предотвращения превышения квоты
             if response:
@@ -144,8 +157,8 @@ def process_domain(domain, credentials, links_to_index_file, indexed_links_file,
         return 0
 
     if not check_quota(service, domain):
-        print(f"Quota exceeded for {domain}, skipping indexing.")
-        send_telegram_message(f"Quota exceeded for {domain}, skipping indexing.")
+        print(f"Quota exceeded or service unavailable for {domain}, skipping indexing.")
+        send_telegram_message(f"Quota exceeded or service unavailable for {domain}, skipping indexing.")
         return 0
 
     indexed_links = load_links(indexed_links_file)
