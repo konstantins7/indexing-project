@@ -6,20 +6,21 @@ from googleapiclient.discovery import build
 from xml.etree import ElementTree as ET
 
 SCOPES = ['https://www.googleapis.com/auth/indexing']
-VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ82FD975FBBE4')
+VITRINA24KZ_CREDENTIALС = os.getenv('VITRINA24KZ82FD975FBBE4')
 MEDVITRINA24KZ_CREDENTIALС = os.getenv('MEDVITRINA24KZ61856B49EC6E')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
-def get_service(credentials_json):
+def get_service(credentials_json, service_name):
     if not credentials_json:
-        raise ValueError("Missing credentials")
-    with open('temp_credentials.json', 'w') as f:
+        raise ValueError(f"Missing credentials for {service_name}")
+    print(f"Loading credentials for {service_name}: {credentials_json[:30]}...")  # Отладочная информация
+    with open(f'temp_credentials_{service_name}.json', 'w') as f:
         f.write(credentials_json)
     credentials = service_account.Credentials.from_service_account_file(
-        'temp_credentials.json', scopes=SCOPES)
+        f'temp_credentials_{service_name}.json', scopes=SCOPES)
     service = build('indexing', 'v3', credentials=credentials)
-    os.remove('temp_credentials.json')
+    os.remove(f'temp_credentials_{service_name}.json')
     return service
 
 def index_url(service, url):
@@ -51,14 +52,18 @@ def check_indexed(service, url):
 def load_links(file_path):
     if os.path.exists(file_path):
         with open(file_path, 'r') as file:
+            print(f"Loaded links from {file_path}")
             return file.readlines()
+    print(f"No links found in {file_path}")
     return []
 
 def save_links(file_path, links):
     with open(file_path, 'w') as file:
         file.writelines(links)
+    print(f"Saved links to {file_path}")
 
 def fetch_sitemap_links(sitemap_url):
+    print(f"Fetching sitemap links from {sitemap_url}")
     try:
         response = requests.get(sitemap_url)
         if response.status_code == 200:
@@ -82,17 +87,20 @@ def fetch_sitemap_links(sitemap_url):
     return []
 
 def send_telegram_message(message):
+    print(f"Sending Telegram message: {message}")
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     data = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": message
     }
     response = requests.post(url, data=data)
+    print(f"Telegram response: {response.json()}")
     return response
 
 def log_error(file_path, url, error_message):
     with open(file_path, 'a') as f:
         f.write(f"{url}: {error_message}\n")
+    print(f"Logged error for {url}: {error_message}")
 
 def process_links(service, links_to_index, indexed_links, failed_links, domain, limit):
     indexed_count = 0
@@ -121,8 +129,8 @@ def process_links(service, links_to_index, indexed_links, failed_links, domain, 
 def main():
     print("Starting indexing process")
     try:
-        vitrina_service = get_service(VITRINA24KZ_CREDENTIALS)
-        med_service = get_service(MEDVITRINA24KZ_CREDENTIALС)
+        vitrina_service = get_service(VITRINA24KZ_CREDENTIALС, 'vitrina24.kz')
+        med_service = get_service(MEDVITRINA24KZ_CREDENTIALС, 'med.vitrina24.kz')
     except ValueError as e:
         print(f"Error: {e}")
         send_telegram_message(f"Indexing process failed: {e}")
