@@ -7,8 +7,8 @@ from xml.etree import ElementTree as ET
 from googleapiclient.errors import HttpError
 
 SCOPES = ['https://www.googleapis.com/auth/indexing']
-VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ82FD975FBBE4')
-MEDVITRINA24KZ_CREDENTIALS = os.getenv('MEDVITRINA24KZ61856B49EC6E')
+VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ_CREDENTIALS')
+MEDVITRINA24KZ_CREDENTIALS = os.getenv('MEDVITRINA24KZ_CREDENTIALS')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
@@ -25,9 +25,8 @@ def get_service(credentials_json, service_name):
     return service
 
 def check_quota(service, domain):
-    url = "https://indexing.googleapis.com/v3/urlNotifications:metadata"
     try:
-        service.urlNotifications().getMetadata(url=f"https://{domain}").execute()
+        response = service.urlNotifications().getMetadata(url=f"https://{domain}").execute()
         return True
     except HttpError as e:
         if e.resp.status == 429:
@@ -186,7 +185,7 @@ def main():
 
     vitrina_indexed_count = process_domain(
         "vitrina24.kz",
-        VITRINA24KZ_CREDENTIALС,
+        VITRINA24KZ_CREDENTIALS,
         'links_to_index_vitrina.txt',
         'indexed_links_vitrina.txt',
         'failed_links_vitrina.txt',
@@ -196,7 +195,7 @@ def main():
 
     med_indexed_count = process_domain(
         "med.vitrina24.kz",
-        MEDVITRINA24KZ_CREDENTIALС,
+        MEDVITRINA24KZ_CREDENTIALS,
         'links_to_index_med.txt',
         'indexed_links_med.txt',
         'failed_links_med.txt',
