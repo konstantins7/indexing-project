@@ -40,39 +40,4 @@ def save_links(file_path, links):
     with open(file_path, 'w') as file:
         file.writelines(links)
 
-def fetch_sitemap_links(sitemap_url):
-    response = requests.get(sitemap_url)
-    if response.status_code == 200:
-        root = ET.fromstring(response.content)
-        return [url.find('loc').text + "\n" for url in root.findall('.//url')]
-    return []
-
-def main():
-    vitrina_service = get_service(VITRINA24KZ_CREDENTIALS)
-    med_service = get_service(MEDVITRINA24KZ_CREDENTIALS)
-
-    indexed_links = load_links('indexed_links.txt')
-    failed_links = load_links('failed_links.txt')
-
-    links_to_index = fetch_sitemap_links('https://vitrina24.kz/sitemap.xml')
-    links_to_index += fetch_sitemap_links('https://med.vitrina24.kz/sitemap.xml')
-
-    print(f"Fetched {len(links_to_index)} links to index")
-
-    indexed_count = 0
-    for url in links_to_index:
-        if indexed_count >= 200:
-            break
-        if url not in indexed_links and url not in failed_links:
-            response = index_url(vitrina_service, url.strip()) or index_url(med_service, url.strip())
-            if response:
-                indexed_links.append(url)
-                indexed_count += 1
-            else:
-                failed_links.append(url)
-
-    save_links('indexed_links.txt', indexed_links)
-    save_links('failed_links.txt', failed_links)
-
-if __name__ == "__main__":
-    main()
+def fetch_sitemap_links(sitemap_url
