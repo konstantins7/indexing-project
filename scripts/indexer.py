@@ -4,10 +4,11 @@ import time
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from xml.etree import ElementTree as ET
+from googleapiclient.errors import HttpError
 
 SCOPES = ['https://www.googleapis.com/auth/indexing']
-VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ_CREDENTIALS')
-MEDVITRINA24KZ_CREDENTIALS = os.getenv('MEDVITRINA24KZ_CREDENTIALS')
+VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ82FD975FBBE4')
+MEDVITRINA24KZ_CREDENTIALS = os.getenv('MEDVITRINA24KZ61856B49EC6E')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
@@ -22,6 +23,19 @@ def get_service(credentials_json, service_name):
     service = build('indexing', 'v3', credentials=credentials)
     os.remove(f'temp_credentials_{service_name}.json')
     return service
+
+def check_quota(service, domain):
+    url = "https://indexing.googleapis.com/v3/urlNotifications:metadata"
+    try:
+        service.urlNotifications().getMetadata(url=f"https://{domain}").execute()
+        return True
+    except HttpError as e:
+        if e.resp.status == 429:
+            print(f"Quota exceeded for {domain}")
+            return False
+        else:
+            print(f"Error checking quota for {domain}: {e}")
+            return False
 
 def index_url(service, url):
     body = {
@@ -134,6 +148,11 @@ def process_domain(domain, credentials, links_to_index_file, indexed_links_file,
         send_telegram_message(f"Indexing process for {domain} failed: {e}")
         return 0
 
+    if not check_quota(service, domain):
+        print(f"Quota exceeded for {domain}, skipping indexing.")
+        send_telegram_message(f"Quota exceeded for {domain}, skipping indexing.")
+        return 0
+
     indexed_links = load_links(indexed_links_file)
     failed_links = load_links(failed_links_file)
     links_to_index = load_links(links_to_index_file)
@@ -167,7 +186,7 @@ def main():
 
     vitrina_indexed_count = process_domain(
         "vitrina24.kz",
-        VITRINA24KZ_CREDENTIALS,
+        VITRINA24KZ_CREDENTIALС,
         'links_to_index_vitrina.txt',
         'indexed_links_vitrina.txt',
         'failed_links_vitrina.txt',
@@ -177,7 +196,7 @@ def main():
 
     med_indexed_count = process_domain(
         "med.vitrina24.kz",
-        MEDVITRINA24KZ_CREDENTIALS,
+        MEDVITRINA24KZ_CREDENTIALС,
         'links_to_index_med.txt',
         'indexed_links_med.txt',
         'failed_links_med.txt',
@@ -196,4 +215,3 @@ def main():
 
 if __name__ == "__main__":
     main()
- 
