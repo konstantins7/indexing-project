@@ -205,16 +205,6 @@ def process_site(site, credentials, links_to_index_file, indexed_links_file, fai
 def main():
     print("Starting indexing process")
 
-    vitrina_indexed_count = process_site(
-        "vitrina24.kz",
-        VITRINA24KZ_CREDENTIALS,
-        'links_to_index_vitrina.txt',
-        'indexed_links_vitrina.txt',
-        'failed_links_vitrina.txt',
-        'https://vitrina24.kz/sitemap.xml',
-        200
-    )
-
     med_indexed_count = process_site(
         "med.vitrina24.kz",
         MEDVITRINA24KZ_CREDENTIALS,
@@ -222,6 +212,16 @@ def main():
         'indexed_links_med.txt',
         'failed_links_med.txt',
         'https://med.vitrina24.kz/sitemap.xml',
+        200
+    )
+
+    vitrina_indexed_count = process_site(
+        "vitrina24.kz",
+        VITRINA24KZ_CREDENTIALS,
+        'links_to_index_vitrina.txt',
+        'indexed_links_vitrina.txt',
+        'failed_links_vitrina.txt',
+        'https://vitrina24.kz/sitemap.xml',
         200
     )
 
