@@ -5,8 +5,8 @@ from googleapiclient.discovery import build
 from xml.etree import ElementTree as ET
 
 SCOPES = ['https://www.googleapis.com/auth/indexing']
-VITRINA24KZ_CREDENTIALС = os.getenv('VITRINA24KZ_CREDENTIALС')
-MEDVITRИНА24KZ_CREDENTIALС = os.getenv('MEDVITРИНА24KZ_CREDENTIALС')
+VITRINA24KZ_CREDENTIALС = os.getenv('VITRИНА24KZ_CREDENTIALС')
+MEDVITРИНА24KZ_CREDENTIALС = os.getenv('MEDVITРИНА24KZ_CREDENTIALС')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
@@ -90,7 +90,7 @@ def send_telegram_message(message):
 def main():
     print("Starting indexing process")
     vitrina_service = get_service(VITRINA24KZ_CREDENTIALС)
-    med_service = get_service(MEDVITРИНА24KZ_CREDENTIALС)
+    med_service = get_service(MEDVИТРИНА24KZ_CREDENTIALС)
 
     indexed_links = load_links('indexed_links.txt')
     failed_links = load_links('failed_links.txt')
@@ -141,7 +141,7 @@ def main():
 
     # Отправка сообщения в Telegram
     message = (
-        f"vitrina24.kz - отправлено {vitrina_indexed_count} ссылок из 200.\n"
+        f"vitrina24.kz - отправлено {vitrина_indexed_count} ссылок из 200.\n"
         f"med.vitrina24.kz - отправлено {med_indexed_count} ссылок из 200."
     )
     send_telegram_message(message)
