@@ -26,7 +26,7 @@ def get_service(credentials_json, service_name):
 
 def check_quota(service, domain):
     try:
-        response = service.urlNotifications().getMetadata(url=f"https://{domain}").execute()
+        service.urlNotifications().getMetadata(url=f"https://{domain}").execute()
         return True
     except HttpError as e:
         if e.resp.status == 429:
@@ -45,7 +45,10 @@ def index_url(service, url):
         response = service.urlNotifications().publish(body=body).execute()
         print(f"Indexed {url}: {response}")
         return response
-    except Exception as e:
+    except HttpError as e:
+        if e.resp.status == 429:
+            print(f"Quota exceeded while indexing {url}")
+            return 'QUOTA_EXCEEDED'
         print(f"Error indexing {url}: {e}")
         return None
 
@@ -110,6 +113,10 @@ def process_links(service, links_to_index, indexed_links, failed_links, domain, 
         if url not in indexed_links and url not in failed_links:
             print(f"Indexing URL: {url}")
             response = index_url(service, url)
+            if response == 'QUOTA_EXCEEDED':
+                print(f"Quota exceeded during processing {domain}, stopping.")
+                send_telegram_message(f"Quota exceeded during processing {domain}, stopping.")
+                break
             time.sleep(1)  # Задержка между запросами для предотвращения превышения квоты
             if response:
                 indexed_links.append(url + "\n")
@@ -119,7 +126,7 @@ def process_links(service, links_to_index, indexed_links, failed_links, domain, 
                 log_error('failed_links_errors.txt', url, 'Indexing failed')
 
             # Проверка квоты каждые 100 ссылок
-            if indexed_count % 100 == 0:
+            if (i + 1) % 100 == 0:
                 if not check_quota(service, domain):
                     print(f"Quota exceeded during processing {domain}, stopping.")
                     send_telegram_message(f"Quota exceeded during processing {domain}, stopping.")
