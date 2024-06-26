@@ -15,6 +15,8 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
 if not TELEGRAM_TOKEN:
     raise ValueError("Missing Telegram token")
+else:
+    print(f"Telegram token is set: {TELEGRAM_TOKEN[:4]}...")
 
 def get_service(credentials_json, site_name):
     if not credentials_json:
