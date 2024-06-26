@@ -7,6 +7,8 @@ from xml.etree import ElementTree as ET
 SCOPES = ['https://www.googleapis.com/auth/indexing']
 VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ_CREDENTIALS')
 MEDVITRINA24KZ_CREDENTIALS = os.getenv('MEDVITRINA24KZ_CREDENTIALS')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
 def get_service(credentials_json):
     with open('temp_credentials.json', 'w') as f:
@@ -40,4 +42,8 @@ def save_links(file_path, links):
     with open(file_path, 'w') as file:
         file.writelines(links)
 
-def fetch_sitemap_links(sitemap_url
+def fetch_sitemap_links(sitemap_url):
+    response = requests.get(sitemap_url)
+    if response.status_code == 200:
+        root = ET.fromstring(response.content)
+       
