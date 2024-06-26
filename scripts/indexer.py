@@ -1,12 +1,13 @@
 import requests
 import os
+import time
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from xml.etree import ElementTree as ET
 
 SCOPES = ['https://www.googleapis.com/auth/indexing']
-VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ_CREDENTIALS')
-MEDVITRINA24KZ_CREDENTIALS = os.getenv('MEDVITRINA24KZ_CREDENTIALS')
+VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ82FD975FBBE4')
+MEDVITRINA24KZ_CREDENTIALС = os.getenv('MEDVITRINA24KZ61856B49EC6E')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
@@ -89,6 +90,10 @@ def send_telegram_message(message):
     response = requests.post(url, data=data)
     return response
 
+def log_error(file_path, url, error_message):
+    with open(file_path, 'a') as f:
+        f.write(f"{url}: {error_message}\n")
+
 def process_links(service, links_to_index, indexed_links, failed_links, domain, limit):
     indexed_count = 0
     for url in links_to_index:
@@ -97,14 +102,17 @@ def process_links(service, links_to_index, indexed_links, failed_links, domain, 
         if url not in indexed_links and url not in failed_links:
             print(f"Checking if URL is indexed: {url}")
             is_indexed = check_indexed(service, url)
+            time.sleep(1)  # Задержка между запросами для предотвращения превышения квоты
             if not is_indexed:
                 print(f"Indexing URL: {url}")
                 response = index_url(service, url)
+                time.sleep(1)  # Задержка между запросами для предотвращения превышения квоты
                 if response:
                     indexed_links.append(url + "\n")
                     indexed_count += 1
                 else:
                     failed_links.append(url + "\n")
+                    log_error('failed_links_errors.txt', url, 'Indexing failed')
             else:
                 indexed_links.append(url + "\n")
     print(f"{domain} - отправлено {indexed_count} ссылок из {limit}.")
@@ -114,7 +122,7 @@ def main():
     print("Starting indexing process")
     try:
         vitrina_service = get_service(VITRINA24KZ_CREDENTIALS)
-        med_service = get_service(MEDVITRINA24KZ_CREDENTIALS)
+        med_service = get_service(MEDVITRINA24KZ_CREDENTIALС)
     except ValueError as e:
         print(f"Error: {e}")
         send_telegram_message(f"Indexing process failed: {e}")
@@ -147,7 +155,7 @@ def main():
         indexed_links_vitrina,
         failed_links_vitrina,
         "vitrina24.kz",
-        100
+        200
     )
 
     med_indexed_count = process_links(
@@ -156,7 +164,7 @@ def main():
         indexed_links_med,
         failed_links_med,
         "med.vitrina24.kz",
-        100
+        200
     )
 
     save_links('indexed_links_vitrina.txt', indexed_links_vitrina)
@@ -168,8 +176,8 @@ def main():
 
     # Отправка сообщения в Telegram
     message = (
-        f"vitrina24.kz - отправлено {vitrina_indexed_count} ссылок из 100.\n"
-        f"med.vitrina24.kz - отправлено {med_indexed_count} ссылок из 100."
+        f"vitrina24.kz - отправлено {vitrina_indexed_count} ссылок из 200.\n"
+        f"med.vitrina24.kz - отправлено {med_indexed_count} ссылок из 200."
     )
     send_telegram_message(message)
 
