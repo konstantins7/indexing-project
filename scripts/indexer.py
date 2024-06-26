@@ -49,19 +49,6 @@ def index_url(service, url):
         print(f"Error indexing {url}: {e}")
         return None
 
-def check_indexed(service, url):
-    try:
-        response = service.urlNotifications().getMetadata(url=url).execute()
-        if 'latestUpdate' in response:
-            print(f"URL already indexed: {url}")
-            return True
-        else:
-            print(f"URL not indexed: {url}")
-            return False
-    except Exception as e:
-        print(f"Error checking index status for {url}: {e}")
-        return False
-
 def load_links(file_path):
     if os.path.exists(file_path):
         with open(file_path, 'r') as file:
@@ -121,21 +108,15 @@ def process_links(service, links_to_index, indexed_links, failed_links, domain, 
         if indexed_count >= limit:
             break
         if url not in indexed_links and url not in failed_links:
-            print(f"Checking if URL is indexed: {url}")
-            is_indexed = check_indexed(service, url)
+            print(f"Indexing URL: {url}")
+            response = index_url(service, url)
             time.sleep(1)  # Задержка между запросами для предотвращения превышения квоты
-            if not is_indexed:
-                print(f"Indexing URL: {url}")
-                response = index_url(service, url)
-                time.sleep(1)  # Задержка между запросами для предотвращения превышения квоты
-                if response:
-                    indexed_links.append(url + "\n")
-                    indexed_count += 1
-                else:
-                    failed_links.append(url + "\n")
-                    log_error('failed_links_errors.txt', url, 'Indexing failed')
-            else:
+            if response:
                 indexed_links.append(url + "\n")
+                indexed_count += 1
+            else:
+                failed_links.append(url + "\n")
+                log_error('failed_links_errors.txt', url, 'Indexing failed')
     print(f"{domain} - отправлено {indexed_count} ссылок из {limit}.")
     return indexed_count
 
