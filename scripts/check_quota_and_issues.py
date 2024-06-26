@@ -20,9 +20,9 @@ def get_service(credentials_json):
 
 def check_quota(service):
     try:
-        # Реализуйте вызов для проверки квоты, если такая возможность есть
-        # Пример: response = service.usage().quota().execute()
-        # Вернем True если квота превышена, False если все в порядке
+        # Если возможно, используйте метод для проверки квоты
+        response = service.urlNotifications().getMetadata(url='https://vitrina24.kz').execute()
+        print(f"Quota check response: {response}")
         return False
     except Exception as e:
         print(f"Error checking quota: {e}")
@@ -38,21 +38,4 @@ def send_telegram_message(message):
     return response
 
 def main():
-    vitrina_service = get_service(VITRINA24KZ_CREDENTIALS)
-    med_service = get_service(MEDVITRINA24KZ_CREDENTIALS)
-
-    quota_exceeded = check_quota(vitrina_service) or check_quota(med_service)
-    if quota_exceeded:
-        send_telegram_message("Quota exceeded or issue detected.")
-    else:
-        print("Quota is within limits.")
-
-    # Добавьте любую дополнительную логику для проверки проблем
-    issues = []
-
-    if issues:
-        for issue in issues:
-            send_telegram_message(f"Issue detected: {issue}")
-
-if __name__ == "__main__":
-    main()
+   
