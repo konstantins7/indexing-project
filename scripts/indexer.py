@@ -24,6 +24,7 @@ def index_url(service, url):
     }
     try:
         response = service.urlNotifications().publish(body=body).execute()
+        print(f"Indexed {url}: {response}")
         return response
     except Exception as e:
         print(f"Error indexing {url}: {e}")
@@ -55,6 +56,8 @@ def main():
 
     links_to_index = fetch_sitemap_links('https://vitrina24.kz/sitemap.xml')
     links_to_index += fetch_sitemap_links('https://med.vitrina24.kz/sitemap.xml')
+
+    print(f"Fetched {len(links_to_index)} links to index")
 
     indexed_count = 0
     for url in links_to_index:
