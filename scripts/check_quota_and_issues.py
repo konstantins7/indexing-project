@@ -41,8 +41,11 @@ def main():
     vitrina_service = get_service(VITRINA24KZ_CREDENTIALS)
     med_service = get_service(MEDVITRINA24KZ_CREDENTIALS)
 
-    if check_quota(vitrina_service) or check_quota(med_service):
+    quota_exceeded = check_quota(vitrina_service) or check_quota(med_service)
+    if quota_exceeded:
         send_telegram_message("Quota exceeded or issue detected.")
+    else:
+        print("Quota is within limits.")
 
     # Добавьте любую дополнительную логику для проверки проблем
     issues = []
