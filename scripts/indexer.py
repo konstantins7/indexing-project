@@ -5,8 +5,8 @@ from googleapiclient.discovery import build
 from xml.etree import ElementTree as ET
 
 SCOPES = ['https://www.googleapis.com/auth/indexing']
-VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ_CREDENTIALS')
-MEDVITRINA24KZ_CREDENTIALS = os.getenv('MEDVITRINA24KZ_CREDENTIALS')
+VITRINA24KZ_CREDENTIALС = os.getenv('VITRINA24KZ_CREDENTIALС')
+MEDVITRИНА24KZ_CREDENTIALС = os.getenv('MEDVITРИНА24KZ_CREDENTIALС')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
@@ -32,6 +32,19 @@ def index_url(service, url):
         print(f"Error indexing {url}: {e}")
         return None
 
+def check_indexed(service, url):
+    try:
+        response = service.urlNotifications().getMetadata(url=url).execute()
+        if 'latestUpdate' in response:
+            print(f"URL already indexed: {url}")
+            return True
+        else:
+            print(f"URL not indexed: {url}")
+            return False
+    except Exception as e:
+        print(f"Error checking index status for {url}: {e}")
+        return False
+
 def load_links(file_path):
     if os.path.exists(file_path):
         with open(file_path, 'r') as file:
@@ -43,11 +56,26 @@ def save_links(file_path, links):
         file.writelines(links)
 
 def fetch_sitemap_links(sitemap_url):
-    response = requests.get(sitemap_url)
-    if response.status_code == 200:
-        root = ET.fromstring(response.content)
-        return [url.find('loc').text + "\n" for url in root.findall('.//url')]
-    print(f"Failed to fetch sitemap from {sitemap_url}")
+    try:
+        response = requests.get(sitemap_url)
+        if response.status_code == 200:
+            root = ET.fromstring(response.content)
+            links = []
+            for elem in root:
+                if elem.tag.endswith('sitemap'):
+                    for loc in elem:
+                        if loc.tag.endswith('loc'):
+                            links += fetch_sitemap_links(loc.text)
+                elif elem.tag.endswith('url'):
+                    for loc in elem:
+                        if loc.tag.endswith('loc'):
+                            links.append(loc.text + "\n")
+            print(f"Fetched {len(links)} links from {sitemap_url}")
+            return links
+        else:
+            print(f"Failed to fetch sitemap from {sitemap_url}, status code: {response.status_code}")
+    except Exception as e:
+        print(f"Error fetching sitemap from {sitemap_url}: {e}")
     return []
 
 def send_telegram_message(message):
@@ -61,15 +89,18 @@ def send_telegram_message(message):
 
 def main():
     print("Starting indexing process")
-    vitrina_service = get_service(VITRINA24KZ_CREDENTIALS)
-    med_service = get_service(MEDVITRINA24KZ_CREDENTIALS)
+    vitrina_service = get_service(VITRINA24KZ_CREDENTIALС)
+    med_service = get_service(MEDVITРИНА24KZ_CREDENTIALС)
 
     indexed_links = load_links('indexed_links.txt')
     failed_links = load_links('failed_links.txt')
+    links_to_index = load_links('links_to_index.txt')
 
-    vitrina_links_to_index = fetch_sitemap_links('https://vitrina24.kz/sitemap.xml')
-    med_links_to_index = fetch_sitemap_links('https://med.vitrina24.kz/sitemap.xml')
-    links_to_index = vitrina_links_to_index + med_links_to_index
+    if not links_to_index:
+        vitrina_links_to_index = fetch_sitemap_links('https://vitrina24.kz/sitemap.xml')
+        med_links_to_index = fetch_sitemap_links('https://med.vitrina24.kz/sitemap.xml')
+        links_to_index = vitrina_links_to_index + med_links_to_index
+        save_links('links_to_index.txt', links_to_index)
 
     print(f"Fetched {len(links_to_index)} links to index")
 
@@ -77,24 +108,31 @@ def main():
     med_indexed_count = 0
     total_indexed_count = 0
 
+    links_to_index = [url.strip() for url in links_to_index]
+
     for url in links_to_index:
         if total_indexed_count >= 200:
             break
         if url not in indexed_links and url not in failed_links:
-            print(f"Indexing URL: {url.strip()}")
-            if "vitrina24.kz" in url:
-                response = index_url(vitrina_service, url.strip())
+            print(f"Checking if URL is indexed: {url}")
+            is_indexed = check_indexed(vitrina_service, url) or check_indexed(med_service, url)
+            if not is_indexed:
+                print(f"Indexing URL: {url}")
+                if "vitrina24.kz" in url:
+                    response = index_url(vitrina_service, url)
+                    if response:
+                        vitrina_indexed_count += 1
+                elif "med.vitrina24.kz" in url:
+                    response = index_url(med_service, url)
+                    if response:
+                        med_indexed_count += 1
                 if response:
-                    vitrina_indexed_count += 1
-            elif "med.vitrina24.kz" in url:
-                response = index_url(med_service, url.strip())
-                if response:
-                    med_indexed_count += 1
-            if response:
-                indexed_links.append(url)
-                total_indexed_count += 1
+                    indexed_links.append(url + "\n")
+                    total_indexed_count += 1
+                else:
+                    failed_links.append(url + "\n")
             else:
-                failed_links.append(url)
+                indexed_links.append(url + "\n")
 
     save_links('indexed_links.txt', indexed_links)
     save_links('failed_links.txt', failed_links)
@@ -108,6 +146,9 @@ def main():
     )
     send_telegram_message(message)
 
+    # Удаление обработанных ссылок из списка для индексирования
+    remaining_links = links_to_index[total_indexed_count:]
+    save_links('links_to_index.txt', remaining_links)
+
 if __name__ == "__main__":
     main()
- 
