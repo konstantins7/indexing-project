@@ -1,10 +1,8 @@
 import requests
-import json
 import os
-
-# Настройка аутентификации для Google API
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from xml.etree import ElementTree as ET
 
 SCOPES = ['https://www.googleapis.com/auth/indexing']
 VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ_CREDENTIALS')
@@ -29,12 +27,21 @@ def index_url(service, url):
         return None
 
 def load_links(file_path):
-    with open(file_path, 'r') as file:
-        return file.readlines()
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as file:
+            return file.readlines()
+    return []
 
 def save_links(file_path, links):
     with open(file_path, 'w') as file:
         file.writelines(links)
+
+def fetch_sitemap_links(sitemap_url):
+    response = requests.get(sitemap_url)
+    if response.status_code == 200:
+        root = ET.fromstring(response.content)
+        return [url.find('loc').text + "\n" for url in root.findall('.//url')]
+    return []
 
 def main():
     vitrina_service = get_service(VITRINA24KZ_CREDENTIALS)
@@ -43,18 +50,20 @@ def main():
     indexed_links = load_links('indexed_links.txt')
     failed_links = load_links('failed_links.txt')
 
-    links_to_index = []  # Добавьте логику для получения ссылок из sitemap
+    links_to_index = fetch_sitemap_links('https://vitrina24.kz/sitemap.xml')
+    links_to_index += fetch_sitemap_links('https://med.vitrina24.kz/sitemap.xml')
 
     indexed_count = 0
     for url in links_to_index:
         if indexed_count >= 200:
             break
-        response = index_url(vitrina_service, url) or index_url(med_service, url)
-        if response:
-            indexed_links.append(url + "\n")
-            indexed_count += 1
-        else:
-            failed_links.append(url + "\n")
+        if url not in indexed_links and url not in failed_links:
+            response = index_url(vitrina_service, url.strip()) or index_url(med_service, url.strip())
+            if response:
+                indexed_links.append(url)
+                indexed_count += 1
+            else:
+                failed_links.append(url)
 
     save_links('indexed_links.txt', indexed_links)
     save_links('failed_links.txt', failed_links)
