@@ -104,7 +104,7 @@ def log_error(file_path, url, error_message):
 
 def process_links(service, links_to_index, indexed_links, failed_links, domain, limit):
     indexed_count = 0
-    for url in links_to_index:
+    for i, url in enumerate(links_to_index):
         if indexed_count >= limit:
             break
         if url not in indexed_links and url not in failed_links:
@@ -117,6 +117,14 @@ def process_links(service, links_to_index, indexed_links, failed_links, domain, 
             else:
                 failed_links.append(url + "\n")
                 log_error('failed_links_errors.txt', url, 'Indexing failed')
+
+            # Проверка квоты каждые 100 ссылок
+            if indexed_count % 100 == 0:
+                if not check_quota(service, domain):
+                    print(f"Quota exceeded during processing {domain}, stopping.")
+                    send_telegram_message(f"Quota exceeded during processing {domain}, stopping.")
+                    break
+
     print(f"{domain} - отправлено {indexed_count} ссылок из {limit}.")
     return indexed_count
 
