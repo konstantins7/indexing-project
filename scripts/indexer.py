@@ -13,34 +13,37 @@ MEDVITRINA24KZ_CREDENTIALS = os.getenv('MEDVITRINA24KZ_CREDENTIALS')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
-def get_service(credentials_json, service_name):
+if not TELEGRAM_TOKEN:
+    raise ValueError("Missing Telegram token")
+
+def get_service(credentials_json, site_name):
     if not credentials_json:
-        raise ValueError(f"Missing credentials for {service_name}")
-    print(f"Loading credentials for {service_name}: {credentials_json[:30]}...")  # Отладочная информация
-    with open(f'temp_credentials_{service_name}.json', 'w') as f:
+        raise ValueError(f"Missing credentials for {site_name}")
+    print(f"Loading credentials for {site_name}: {credentials_json[:30]}...")  # Отладочная информация
+    with open(f'temp_credentials_{site_name}.json', 'w') as f:
         f.write(credentials_json)
     credentials = service_account.Credentials.from_service_account_file(
-        f'temp_credentials_{service_name}.json', scopes=SCOPES)
+        f'temp_credentials_{site_name}.json', scopes=SCOPES)
     service = build('indexing', 'v3', credentials=credentials)
-    os.remove(f'temp_credentials_{service_name}.json')
+    os.remove(f'temp_credentials_{site_name}.json')
     return service
 
-def check_quota(service, domain):
+def check_quota(service, site):
     try:
-        response = service.urlNotifications().getMetadata(url=f"https://{domain}").execute()
+        response = service.urlNotifications().getMetadata(url=f"https://{site}").execute()
         return True
     except HttpError as e:
         if e.resp.status == 429:
-            print(f"Quota exceeded for {domain}")
+            print(f"Quota exceeded for {site}")
             return False
         elif e.resp.status == 503:
-            print(f"Service unavailable for {domain}, skipping.")
+            print(f"Service unavailable for {site}, skipping.")
             return False
         else:
-            print(f"Error checking quota for {domain}: {e}")
+            print(f"Error checking quota for {site}: {e}")
             return False
     except RefreshError as e:
-        print(f"Refresh error while checking quota for {domain}: {e}")
+        print(f"Refresh error while checking quota for {site}: {e}")
         return False
 
 def index_url(service, url):
@@ -103,9 +106,6 @@ def fetch_sitemap_links(sitemap_url):
     return []
 
 def send_telegram_message(message):
-    if not TELEGRAM_TOKEN:
-        print("Missing Telegram token, skipping sending message.")
-        return None
     print(f"Sending Telegram message: {message}")
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     data = {
@@ -121,7 +121,7 @@ def log_error(file_path, url, error_message):
         f.write(f"{url}: {error_message}\n")
     print(f"Logged error for {url}: {error_message}")
 
-def process_links(service, links_to_index, indexed_links, failed_links, domain, limit):
+def process_links(service, links_to_index, indexed_links, failed_links, site, limit):
     indexed_count = 0
     for i, url in enumerate(links_to_index):
         if indexed_count >= limit:
@@ -130,8 +130,8 @@ def process_links(service, links_to_index, indexed_links, failed_links, domain, 
             print(f"Indexing URL: {url}")
             response = index_url(service, url)
             if response == 'QUOTA_EXCEEDED' or response == 'SERVICE_UNAVAILABLE':
-                print(f"Quota exceeded or service unavailable during processing {domain}, stopping.")
-                send_telegram_message(f"Quota exceeded or service unavailable during processing {domain}, stopping.")
+                print(f"Quota exceeded or service unavailable during processing {site}, stopping.")
+                send_telegram_message(f"Quota exceeded or service unavailable during processing {site}, stopping.")
                 break
             time.sleep(1)  # Задержка между запросами для предотвращения превышения квоты
             if response:
@@ -143,25 +143,25 @@ def process_links(service, links_to_index, indexed_links, failed_links, domain, 
 
             # Проверка квоты каждые 100 ссылок
             if (i + 1) % 100 == 0:
-                if not check_quota(service, domain):
-                    print(f"Quota exceeded during processing {domain}, stopping.")
-                    send_telegram_message(f"Quota exceeded during processing {domain}, stopping.")
+                if not check_quota(service, site):
+                    print(f"Quota exceeded during processing {site}, stopping.")
+                    send_telegram_message(f"Quota exceeded during processing {site}, stopping.")
                     break
 
-    print(f"{domain} - отправлено {indexed_count} ссылок из {limit}.")
+    print(f"{site} - отправлено {indexed_count} ссылок из {limit}.")
     return indexed_count
 
-def process_domain(domain, credentials, links_to_index_file, indexed_links_file, failed_links_file, sitemap_url, limit):
+def process_site(site, credentials, links_to_index_file, indexed_links_file, failed_links_file, sitemap_url, limit):
     try:
-        service = get_service(credentials, domain)
+        service = get_service(credentials, site)
     except ValueError as e:
         print(f"Error: {e}")
-        send_telegram_message(f"Indexing process for {domain} failed: {e}")
+        send_telegram_message(f"Indexing process for {site} failed: {e}")
         return 0
 
-    if not check_quota(service, domain):
-        print(f"Quota exceeded or service unavailable for {domain}, skipping indexing.")
-        send_telegram_message(f"Quota exceeded or service unavailable for {domain}, skipping indexing.")
+    if not check_quota(service, site):
+        print(f"Quota exceeded or service unavailable for {site}, skipping indexing.")
+        send_telegram_message(f"Quota exceeded or service unavailable for {site}, skipping indexing.")
         return 0
 
     indexed_links = load_links(indexed_links_file)
@@ -172,7 +172,7 @@ def process_domain(domain, credentials, links_to_index_file, indexed_links_file,
         links_to_index = fetch_sitemap_links(sitemap_url)
         save_links(links_to_index_file, links_to_index)
 
-    print(f"Fetched {len(links_to_index)} links from {domain}")
+    print(f"Fetched {len(links_to_index)} links from {site}")
 
     links_to_index = [url.strip() for url in links_to_index]
 
@@ -181,7 +181,7 @@ def process_domain(domain, credentials, links_to_index_file, indexed_links_file,
         links_to_index,
         indexed_links,
         failed_links,
-        domain,
+        site,
         limit
     )
 
@@ -195,7 +195,7 @@ def process_domain(domain, credentials, links_to_index_file, indexed_links_file,
 def main():
     print("Starting indexing process")
 
-    vitrina_indexed_count = process_domain(
+    vitrina_indexed_count = process_site(
         "vitrina24.kz",
         VITRINA24KZ_CREDENTIALS,
         'links_to_index_vitrina.txt',
@@ -205,7 +205,7 @@ def main():
         200
     )
 
-    med_indexed_count = process_domain(
+    med_indexed_count = process_site(
         "med.vitrina24.kz",
         MEDVITRINA24KZ_CREDENTIALS,
         'links_to_index_med.txt',
