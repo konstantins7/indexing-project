@@ -2,8 +2,8 @@ name: Daily Indexing
 
 on:
   schedule:
-    - cron: "0 16 * * *"
-    - cron: "0 4 * * *"
+    - cron: "0 15 * * *"
+    - cron: "0 3 * * *"
   workflow_dispatch:
 
 jobs:
@@ -36,11 +36,11 @@ jobs:
 
       - name: Start indexing process
         run: |
-          python indexer.py
+          python scripts/indexer.py
 
       - name: Check quota and issues
         run: |
-          python check_quota_and_issues.py
+          python scripts/check_quota_and_issues.py
 
       - name: Send completion notification
         run: |
