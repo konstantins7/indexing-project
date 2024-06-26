@@ -8,10 +8,13 @@ SCOPES = ['https://www.googleapis.com/auth/indexing']
 VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ_CREDENTIALS')
 MEDVITRINA24KZ_CREDENTIALS = os.getenv('MEDVITRINA24KZ_CREDENTIALS')
 
-def get_service(credentials_file):
+def get_service(credentials_json):
+    with open('temp_credentials.json', 'w') as f:
+        f.write(credentials_json)
     credentials = service_account.Credentials.from_service_account_file(
-        credentials_file, scopes=SCOPES)
+        'temp_credentials.json', scopes=SCOPES)
     service = build('indexing', 'v3', credentials=credentials)
+    os.remove('temp_credentials.json')
     return service
 
 def index_url(service, url):
