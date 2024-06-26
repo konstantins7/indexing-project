@@ -9,10 +9,13 @@ MEDVITRINA24KZ_CREDENTIALS = os.getenv('MEDVITRINA24KZ_CREDENTIALS')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
-def get_service(credentials_file):
+def get_service(credentials_json):
+    with open('temp_credentials.json', 'w') as f:
+        f.write(credentials_json)
     credentials = service_account.Credentials.from_service_account_file(
-        credentials_file, scopes=SCOPES)
+        'temp_credentials.json', scopes=SCOPES)
     service = build('indexing', 'v3', credentials=credentials)
+    os.remove('temp_credentials.json')
     return service
 
 def check_quota(service):
