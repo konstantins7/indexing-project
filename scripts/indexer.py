@@ -6,8 +6,8 @@ from googleapiclient.discovery import build
 from xml.etree import ElementTree as ET
 
 SCOPES = ['https://www.googleapis.com/auth/indexing']
-VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ82FD975FBBE4')
-MEDVITRINA24KZ_CREDENTIALS = os.getenv('MEDVITRINA24KZ61856B49EC6E')
+VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ_CREDENTIALS')
+MEDVITRINA24KZ_CREDENTIALS = os.getenv('MEDVITRINA24KZ_CREDENTIALS')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
