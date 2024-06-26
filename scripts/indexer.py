@@ -6,8 +6,8 @@ from googleapiclient.discovery import build
 from xml.etree import ElementTree as ET
 
 SCOPES = ['https://www.googleapis.com/auth/indexing']
-VITRINA24KZ_CREDENTIALС = os.getenv('VITRINA24KZ82FD975FBBE4')
-MEDVITRINA24KZ_CREDENTIALС = os.getenv('MEDVITRINA24KZ61856B49EC6E')
+VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ82FD975FBBE4')
+MEDVITRINA24KZ_CREDENTIALS = os.getenv('MEDVITRINA24KZ61856B49EC6E')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
@@ -126,59 +126,64 @@ def process_links(service, links_to_index, indexed_links, failed_links, domain, 
     print(f"{domain} - отправлено {indexed_count} ссылок из {limit}.")
     return indexed_count
 
-def main():
-    print("Starting indexing process")
+def process_domain(domain, credentials, links_to_index_file, indexed_links_file, failed_links_file, sitemap_url, limit):
     try:
-        vitrina_service = get_service(VITRINA24KZ_CREDENTIALС, 'vitrina24.kz')
-        med_service = get_service(MEDVITRINA24KZ_CREDENTIALС, 'med.vitrina24.kz')
+        service = get_service(credentials, domain)
     except ValueError as e:
         print(f"Error: {e}")
-        send_telegram_message(f"Indexing process failed: {e}")
-        return
+        send_telegram_message(f"Indexing process for {domain} failed: {e}")
+        return 0
 
-    indexed_links_vitrina = load_links('indexed_links_vitrina.txt')
-    indexed_links_med = load_links('indexed_links_med.txt')
-    failed_links_vitrina = load_links('failed_links_vitrina.txt')
-    failed_links_med = load_links('failed_links_med.txt')
-    links_to_index_vitrina = load_links('links_to_index_vitrina.txt')
-    links_to_index_med = load_links('links_to_index_med.txt')
+    indexed_links = load_links(indexed_links_file)
+    failed_links = load_links(failed_links_file)
+    links_to_index = load_links(links_to_index_file)
 
-    if not links_to_index_vitrina:
-        links_to_index_vitrina = fetch_sitemap_links('https://vitrina24.kz/sitemap.xml')
-        save_links('links_to_index_vitrina.txt', links_to_index_vitrina)
+    if not links_to_index:
+        links_to_index = fetch_sitemap_links(sitemap_url)
+        save_links(links_to_index_file, links_to_index)
 
-    if not links_to_index_med:
-        links_to_index_med = fetch_sitemap_links('https://med.vitrina24.kz/sitemap.xml')
-        save_links('links_to_index_med.txt', links_to_index_med)
+    print(f"Fetched {len(links_to_index)} links from {domain}")
 
-    print(f"Fetched {len(links_to_index_vitrina)} links from vitrina24.kz")
-    print(f"Fetched {len(links_to_index_med)} links from med.vitrina24.kz")
+    links_to_index = [url.strip() for url in links_to_index]
 
-    links_to_index_vitrina = [url.strip() for url in links_to_index_vitrina]
-    links_to_index_med = [url.strip() for url in links_to_index_med]
+    indexed_count = process_links(
+        service,
+        links_to_index,
+        indexed_links,
+        failed_links,
+        domain,
+        limit
+    )
 
-    vitrina_indexed_count = process_links(
-        vitrina_service,
-        links_to_index_vitrina,
-        indexed_links_vitrina,
-        failed_links_vitrina,
+    save_links(indexed_links_file, indexed_links)
+    save_links(failed_links_file, failed_links)
+    remaining_links = links_to_index[indexed_count:]
+    save_links(links_to_index_file, remaining_links)
+
+    return indexed_count
+
+def main():
+    print("Starting indexing process")
+
+    vitrina_indexed_count = process_domain(
         "vitrina24.kz",
+        VITRINA24KZ_CREDENTIALS,
+        'links_to_index_vitrina.txt',
+        'indexed_links_vitrina.txt',
+        'failed_links_vitrina.txt',
+        'https://vitrina24.kz/sitemap.xml',
         200
     )
 
-    med_indexed_count = process_links(
-        med_service,
-        links_to_index_med,
-        indexed_links_med,
-        failed_links_med,
+    med_indexed_count = process_domain(
         "med.vitrina24.kz",
+        MEDVITRINA24KZ_CREDENTIALS,
+        'links_to_index_med.txt',
+        'indexed_links_med.txt',
+        'failed_links_med.txt',
+        'https://med.vitrina24.kz/sitemap.xml',
         200
     )
-
-    save_links('indexed_links_vitrina.txt', indexed_links_vitrina)
-    save_links('failed_links_vitrina.txt', failed_links_vitrina)
-    save_links('indexed_links_med.txt', indexed_links_med)
-    save_links('failed_links_med.txt', failed_links_med)
 
     print(f"Indexing process completed, {vitrina_indexed_count + med_indexed_count} links indexed")
 
@@ -188,12 +193,6 @@ def main():
         f"med.vitrina24.kz - отправлено {med_indexed_count} ссылок из 200."
     )
     send_telegram_message(message)
-
-    # Удаление обработанных ссылок из списка для индексирования
-    remaining_links_vitrina = links_to_index_vitrina[vitrina_indexed_count:]
-    remaining_links_med = links_to_index_med[med_indexed_count:]
-    save_links('links_to_index_vitrina.txt', remaining_links_vitrina)
-    save_links('links_to_index_med.txt', remaining_links_med)
 
 if __name__ == "__main__":
     main()
