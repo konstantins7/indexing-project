@@ -22,10 +22,12 @@ def get_service(credentials_json, site_name):
         raise ValueError(f"Missing credentials for {site_name}")
     print(f"Loading credentials for {site_name}: {credentials_json[:30]}...")  # Отладочная информация
     try:
+        # Записываем JSON в временный файл для отладки
         with open(f'temp_credentials_{site_name}.json', 'w') as f:
             f.write(credentials_json)
-        credentials = service_account.Credentials.from_service_account_file(
-            f'temp_credentials_{site_name}.json', scopes=SCOPES)
+        with open(f'temp_credentials_{site_name}.json', 'r') as f:
+            credentials = service_account.Credentials.from_service_account_file(
+                f.name, scopes=SCOPES)
         service = build('indexing', 'v3', credentials=credentials)
         os.remove(f'temp_credentials_{site_name}.json')
         return service
@@ -36,6 +38,7 @@ def get_service(credentials_json, site_name):
 def check_quota(service, site):
     try:
         response = service.urlNotifications().getMetadata(url=f"https://{site}").execute()
+        print(f"Quota check response: {response}")
         return True
     except HttpError as e:
         if e.resp.status == 429:
@@ -144,7 +147,7 @@ def process_links(service, links_to_index, indexed_links, failed_links, site, li
                 indexed_count += 1
             else:
                 failed_links.append(url + "\n")
-                log_error('failed_links_errors_med_vitrina.txt', url, 'Indexing failed')
+                log_error(f'failed_links_errors_{site}.txt', url, 'Indexing failed')
 
             # Проверка квоты каждые 100 ссылок
             if (i + 1) % 100 == 0:
