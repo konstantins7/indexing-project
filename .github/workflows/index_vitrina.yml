@@ -1,0 +1,32 @@
+name: Index Vitrina24
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Запуск в 03:00 UTC каждый день
+    - cron: '0 15 * * *' # Запуск в 15:00 UTC каждый день
+  workflow_dispatch:
+
+jobs:
+  index_vitrina:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client requests
+
+      - name: Run Vitrina Indexing
+        env:
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          VITRINA24KZ_CREDENTIALS: ${{ secrets.VITRINA24KZ_CREDENTIALS }}
+        run: python scripts/index_vitrina.py
