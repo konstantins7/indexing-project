@@ -30,3 +30,4 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           MEDVITRINA24KZ_CREDENTIALS: ${{ secrets.MEDVITRINA24KZ_CREDENTIALS }}
         run: python scripts/index_med_vitrina.py
+ 
