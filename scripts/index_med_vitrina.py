@@ -90,7 +90,7 @@ def fetch_sitemap_links(sitemap_url):
     print(f"Fetching sitemap links from {sitemap_url}")
     try:
         response = requests.get(sitemap_url)
-        if response.status_code == 200):
+        if response.status_code == 200:
             root = ET.fromstring(response.content)
             links = []
             for elem in root:
