@@ -1,0 +1,32 @@
+name: Index Med Vitrina24
+
+on:
+  schedule:
+    - cron: '30 3 * * *'  # Запуск в 03:30 UTC каждый день
+    - cron: '30 15 * * *' # Запуск в 15:30 UTC каждый день
+  workflow_dispatch:
+
+jobs:
+  index_med_vitrina:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client requests
+
+      - name: Run Med Vitrina Indexing
+        env:
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          MEDVITRINA24KZ_CREDENTIALS: ${{ secrets.MEDVITRINA24KZ_CREDENTIALS }}
+        run: python scripts/index_med_vitrina.py
