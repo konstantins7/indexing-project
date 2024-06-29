@@ -13,6 +13,9 @@ MEDVITRINA24KZ_CREDENTIALS = os.getenv('MEDVITRINA24KZ_CREDENTIALS')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
+DATA_DIR = 'data'
+os.makedirs(DATA_DIR, exist_ok=True)
+
 if not TELEGRAM_TOKEN:
     raise ValueError("Missing Telegram token")
 else:
@@ -86,21 +89,23 @@ def index_url(service, url):
         return None
 
 def load_links(file_path):
-    print(f"Attempting to load links from {file_path}")
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as file:
-            print(f"Loaded links from {file_path}")
+    full_path = os.path.join(DATA_DIR, file_path)
+    print(f"Attempting to load links from {full_path}")
+    if os.path.exists(full_path):
+        with open(full_path, 'r') as file:
+            print(f"Loaded links from {full_path}")
             return [line.strip() for line in file.readlines()]
-    print(f"No links found in {file_path}, creating new file.")
-    with open(file_path, 'w') as file:
+    print(f"No links found in {full_path}, creating new file.")
+    with open(full_path, 'w') as file:
         pass
     return []
 
 def save_links(file_path, links):
-    print(f"Saving links to {file_path}")
-    with open(file_path, 'w') as file:
+    full_path = os.path.join(DATA_DIR, file_path)
+    print(f"Saving links to {full_path}")
+    with open(full_path, 'w') as file:
         file.writelines(f"{link}\n" for link in links)
-    print(f"Saved links to {file_path}")
+    print(f"Saved links to {full_path}")
 
 def fetch_sitemap_links(sitemap_url):
     print(f"Fetching sitemap links from {sitemap_url}")
@@ -138,7 +143,8 @@ def send_telegram_message(message):
     return response
 
 def log_error(file_path, url, error_message):
-    with open(file_path, 'a') as f:
+    full_path = os.path.join(DATA_DIR, file_path)
+    with open(full_path, 'a') as f:
         f.write(f"{url}: {error_message}\n")
     print(f"Logged error for {url}: {error_message}")
 
