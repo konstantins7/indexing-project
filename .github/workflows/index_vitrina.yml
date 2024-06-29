@@ -24,9 +24,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client requests
 
+      - name: Create data directory
+        run: mkdir -p data
+
       - name: Run Vitrina Indexing
         env:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           VITRINA24KZ_CREDENTIALS: ${{ secrets.VITRINA24KZ_CREDENTIALS }}
         run: python scripts/index_vitrina.py
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git add data/
+          git commit -m 'Update index files for vitrina24.kz'
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
