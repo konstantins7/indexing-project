@@ -22,6 +22,7 @@ if not MEDVITRINA24KZ_CREDENTIALS:
     raise ValueError("Missing MEDVITRINA24KZ_CREDENTIALS")
 else:
     print(f"MEDVITRINA24KZ_CREDENTIALS is set")
+    print(f"MEDVITRINA24KZ_CREDENTIALS content: {MEDVITRINA24KZ_CREDENTIALS[:100]}...")  # Выводим первые 100 символов
 
 def get_service(credentials_json, site_name):
     if not credentials_json:
@@ -88,13 +89,15 @@ def load_links(file_path):
     if os.path.exists(file_path):
         with open(file_path, 'r') as file:
             print(f"Loaded links from {file_path}")
-            return file.readlines()
-    print(f"No links found in {file_path}")
+            return [line.strip() for line in file.readlines()]
+    print(f"No links found in {file_path}, creating new file.")
+    with open(file_path, 'w') as file:
+        pass
     return []
 
 def save_links(file_path, links):
     with open(file_path, 'w') as file:
-        file.writelines(links)
+        file.writelines(f"{link}\n" for link in links)
     print(f"Saved links to {file_path}")
 
 def fetch_sitemap_links(sitemap_url):
@@ -112,7 +115,7 @@ def fetch_sitemap_links(sitemap_url):
                 elif elem.tag.endswith('url'):
                     for loc in elem:
                         if loc.tag.endswith('loc'):
-                            links.append(loc.text + "\n")
+                            links.append(loc.text)
             print(f"Fetched {len(links)} links from {sitemap_url}")
             return links
         else:
@@ -151,10 +154,10 @@ def process_links(service, links_to_index, indexed_links, failed_links, site, li
                 break
             time.sleep(1)  # Задержка между запросами для предотвращения превышения квоты
             if response:
-                indexed_links.append(url + "\n")
+                indexed_links.append(url)
                 indexed_count += 1
             else:
-                failed_links.append(url + "\n")
+                failed_links.append(url)
                 log_error(f'failed_links_errors_{site}.txt', url, 'Indexing failed')
 
             # Проверка квоты каждые 100 ссылок
@@ -194,8 +197,6 @@ def process_site(site, credentials, links_to_index_file, indexed_links_file, fai
 
     print(f"Fetched {len(links_to_index)} links from {site}")
 
-    links_to_index = [url.strip() for url in links_to_index]
-
     indexed_count = process_links(
         service,
         links_to_index,
@@ -229,4 +230,9 @@ def main():
 
     # Отправка сообщения в Telegram
     message = (
-        f"med.vitrina24.kz - отправлено {med_indexed_count}
+        f"med.vitrina24.kz - отправлено {med_indexed_count} ссылок из 200."
+    )
+    send_telegram_message(message)
+
+if __name__ == "__main__":
+    main()
