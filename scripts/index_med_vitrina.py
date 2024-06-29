@@ -17,6 +17,11 @@ if not TELEGRAM_TOKEN:
 else:
     print(f"Telegram token is set: {TELEGRAM_TOKEN[:4]}...")
 
+if not MEDVITRINA24KZ_CREDENTIALS:
+    raise ValueError("Missing MEDVITRINA24KZ_CREDENTIALS")
+else:
+    print(f"MEDVITRINA24KZ_CREDENTIALS is set")
+
 def get_service(credentials_json, site_name):
     if not credentials_json:
         raise ValueError(f"Missing credentials for {site_name}")
