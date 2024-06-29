@@ -1,5 +1,6 @@
 import requests
 import os
+import json
 import time
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -12,23 +13,36 @@ VITRINA24KZ_CREDENTIALS = os.getenv('VITRINA24KZ_CREDENTIALS')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
+DATA_DIR = 'data'
+os.makedirs(DATA_DIR, exist_ok=True)
+
 if not TELEGRAM_TOKEN:
     raise ValueError("Missing Telegram token")
 else:
     print(f"Telegram token is set: {TELEGRAM_TOKEN[:4]}...")
 
+if not VITRINA24KZ_CREDENTIALS:
+    raise ValueError("Missing VITRINA24KZ_CREDENTIALS")
+else:
+    print(f"VITRINA24KZ_CREDENTIALS is set")
+    print(f"VITRINA24KZ_CREDENTIALS content: {VITRINA24KZ_CREDENTIALS[:100]}...")  # Выводим первые 100 символов
+
 def get_service(credentials_json, site_name):
     if not credentials_json:
         raise ValueError(f"Missing credentials for {site_name}")
-    print(f"Loading credentials for {site_name}: {credentials_json[:30]}...")  # Отладочная информация
     try:
+        credentials_data = json.loads(credentials_json)
+        print(f"Loaded credentials for {site_name}")
         with open(f'temp_credentials_{site_name}.json', 'w') as f:
-            f.write(credentials_json)
+            json.dump(credentials_data, f)
         credentials = service_account.Credentials.from_service_account_file(
             f'temp_credentials_{site_name}.json', scopes=SCOPES)
         service = build('indexing', 'v3', credentials=credentials)
         os.remove(f'temp_credentials_{site_name}.json')
         return service
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON for {site_name}: {e}")
+        raise
     except Exception as e:
         print(f"Error loading credentials for {site_name}: {e}")
         raise
@@ -36,6 +50,7 @@ def get_service(credentials_json, site_name):
 def check_quota(service, site):
     try:
         response = service.urlNotifications().getMetadata(url=f"https://{site}").execute()
+        print(f"Quota check response: {response}")
         return True
     except HttpError as e:
         if e.resp.status == 429:
@@ -74,17 +89,23 @@ def index_url(service, url):
         return None
 
 def load_links(file_path):
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as file:
-            print(f"Loaded links from {file_path}")
-            return file.readlines()
-    print(f"No links found in {file_path}")
+    full_path = os.path.join(DATA_DIR, file_path)
+    print(f"Attempting to load links from {full_path}")
+    if os.path.exists(full_path):
+        with open(full_path, 'r') as file:
+            print(f"Loaded links from {full_path}")
+            return [line.strip() for line in file.readlines()]
+    print(f"No links found in {full_path}, creating new file.")
+    with open(full_path, 'w') as file:
+        pass
     return []
 
 def save_links(file_path, links):
-    with open(file_path, 'w') as file:
-        file.writelines(links)
-    print(f"Saved links to {file_path}")
+    full_path = os.path.join(DATA_DIR, file_path)
+    print(f"Saving links to {full_path}")
+    with open(full_path, 'w') as file:
+        file.writelines(f"{link}\n" for link in links)
+    print(f"Saved links to {full_path}")
 
 def fetch_sitemap_links(sitemap_url):
     print(f"Fetching sitemap links from {sitemap_url}")
@@ -101,7 +122,7 @@ def fetch_sitemap_links(sitemap_url):
                 elif elem.tag.endswith('url'):
                     for loc in elem:
                         if loc.tag.endswith('loc'):
-                            links.append(loc.text + "\n")
+                            links.append(loc.text)
             print(f"Fetched {len(links)} links from {sitemap_url}")
             return links
         else:
@@ -122,7 +143,8 @@ def send_telegram_message(message):
     return response
 
 def log_error(file_path, url, error_message):
-    with open(file_path, 'a') as f:
+    full_path = os.path.join(DATA_DIR, file_path)
+    with open(full_path, 'a') as f:
         f.write(f"{url}: {error_message}\n")
     print(f"Logged error for {url}: {error_message}")
 
@@ -140,11 +162,11 @@ def process_links(service, links_to_index, indexed_links, failed_links, site, li
                 break
             time.sleep(1)  # Задержка между запросами для предотвращения превышения квоты
             if response:
-                indexed_links.append(url + "\n")
+                indexed_links.append(url)
                 indexed_count += 1
             else:
-                failed_links.append(url + "\n")
-                log_error('failed_links_errors_vitrina.txt', url, 'Indexing failed')
+                failed_links.append(url)
+                log_error(f'failed_links_errors_{site}.txt', url, 'Indexing failed')
 
             # Проверка квоты каждые 100 ссылок
             if (i + 1) % 100 == 0:
@@ -182,8 +204,6 @@ def process_site(site, credentials, links_to_index_file, indexed_links_file, fai
         save_links(links_to_index_file, links_to_index)
 
     print(f"Fetched {len(links_to_index)} links from {site}")
-
-    links_to_index = [url.strip() for url in links_to_index]
 
     indexed_count = process_links(
         service,
