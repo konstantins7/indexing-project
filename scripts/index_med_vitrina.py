@@ -86,6 +86,7 @@ def index_url(service, url):
         return None
 
 def load_links(file_path):
+    print(f"Attempting to load links from {file_path}")
     if os.path.exists(file_path):
         with open(file_path, 'r') as file:
             print(f"Loaded links from {file_path}")
@@ -96,6 +97,7 @@ def load_links(file_path):
     return []
 
 def save_links(file_path, links):
+    print(f"Saving links to {file_path}")
     with open(file_path, 'w') as file:
         file.writelines(f"{link}\n" for link in links)
     print(f"Saved links to {file_path}")
