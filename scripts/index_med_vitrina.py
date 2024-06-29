@@ -1,5 +1,6 @@
 import requests
 import os
+import json
 import time
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -25,17 +26,19 @@ else:
 def get_service(credentials_json, site_name):
     if not credentials_json:
         raise ValueError(f"Missing credentials for {site_name}")
-    print(f"Loading credentials for {site_name}: {credentials_json[:30]}...")  # Отладочная информация
     try:
-        # Записываем JSON в временный файл для отладки
+        credentials_data = json.loads(credentials_json)
+        print(f"Loaded credentials for {site_name}")
         with open(f'temp_credentials_{site_name}.json', 'w') as f:
-            f.write(credentials_json)
-        with open(f'temp_credentials_{site_name}.json', 'r') as f:
-            credentials = service_account.Credentials.from_service_account_file(
-                f.name, scopes=SCOPES)
+            json.dump(credentials_data, f)
+        credentials = service_account.Credentials.from_service_account_file(
+            f'temp_credentials_{site_name}.json', scopes=SCOPES)
         service = build('indexing', 'v3', credentials=credentials)
         os.remove(f'temp_credentials_{site_name}.json')
         return service
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON for {site_name}: {e}")
+        raise
     except Exception as e:
         print(f"Error loading credentials for {site_name}: {e}")
         raise
@@ -226,9 +229,4 @@ def main():
 
     # Отправка сообщения в Telegram
     message = (
-        f"med.vitrina24.kz - отправлено {med_indexed_count} ссылок из 200."
-    )
-    send_telegram_message(message)
-
-if __name__ == "__main__":
-    main()
+        f"med.vitrina24.kz - отправлено {med_indexed_count}
