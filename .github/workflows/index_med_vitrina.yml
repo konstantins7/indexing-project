@@ -6,6 +6,9 @@ on:
     - cron: '30 15 * * *' # Запуск в 15:30 UTC каждый день
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   index_med_vitrina:
     runs-on: ubuntu-latest
